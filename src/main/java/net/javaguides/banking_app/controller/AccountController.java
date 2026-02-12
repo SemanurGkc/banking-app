@@ -4,6 +4,8 @@ import net.javaguides.banking_app.dto.AccountDto;
 import net.javaguides.banking_app.service.IAccountService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,15 +51,29 @@ public class AccountController {
     }
     //Get All Accounts REST API
     @GetMapping
-    public ResponseEntity<List<AccountDto>> getAllAccounts(){
-        List<AccountDto> accounts = accountService.getAllAccounts();
-                return ResponseEntity.ok(accounts);
+    public ResponseEntity<List<AccountDto>> getAllAccounts() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+
+        List<AccountDto> accounts = accountService.getAccountsByUsername(username);
+        return ResponseEntity.ok(accounts);
     }
     //Delete Account REST API
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteAccount(@PathVariable Long id){
         accountService.deleteAccount(id);
         return ResponseEntity.ok("Account is deleted successfully!");
+    }
+    // Transfer DTO
+    @PostMapping("/{fromAccountId}/transfer/{toAccountId}")
+    public ResponseEntity<AccountDto> transfer(
+            @PathVariable Long fromAccountId,
+            @PathVariable Long toAccountId,
+            @RequestBody Map<String, Double> request) {
+
+        double amount = request.get("amount");
+        AccountDto accountDto = accountService.transfer(fromAccountId, toAccountId, amount);
+        return ResponseEntity.ok(accountDto);
     }
 
 }

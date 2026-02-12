@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Dashboard – Banking App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Dashboard</h1>
+        <div class="avatar" id="userAvatar">?</div>
+    </div>
+
+    <!-- ADMIN stats -->
+    <div id="adminStats" class="hidden">
+        <div class="stats-grid">
+            <div class="stat-card"><div class="lbl">Total Balance</div><div class="val" id="totalBalance">₺ –</div><div class="hint">All accounts</div></div>
+            <div class="stat-card"><div class="lbl">Accounts</div><div class="val" id="accountCount">–</div><div class="hint">Active</div></div>
+            <div class="stat-card"><div class="lbl">Transactions</div><div class="val" id="txCount">–</div><div class="hint">All time</div></div>
+        </div>
+    </div>
+
+    <!-- USER stats -->
+    <div id="userStats" class="hidden">
+        <div class="stats-grid">
+            <div class="stat-card"><div class="lbl">My Balance</div><div class="val" id="myBalance">₺ –</div><div class="hint">Current balance</div></div>
+            <div class="stat-card"><div class="lbl">My Accounts</div><div class="val" id="myAccountCount">–</div><div class="hint">Active</div></div>
+            <div class="stat-card"><div class="lbl">My Transactions</div><div class="val" id="myTxCount">–</div><div class="hint">All time</div></div>
+        </div>
+    </div>
+
+    <div class="sec-title">
+        <span id="heroTitle">Main Account</span>
+    </div>
+
+    <div class="account-hero">
+        <div>
+            <div class="acc-lbl">ACCOUNT HOLDER</div>
+            <div class="acc-name" id="mainName">Loading…</div>
+            <div class="acc-id"   id="mainId">#–</div>
+        </div>
+        <div style="text-align:right">
+            <div class="acc-lbl">BALANCE</div>
+            <div class="bal-amount" id="mainBalance">₺ –</div>
+        </div>
+        <div class="acc-actions">
+            <button class="btn-quick" onclick="openModal('deposit')">⬆ Deposit</button>
+            <button class="btn-quick" onclick="openModal('withdraw')">⬇ Withdraw</button>
+        </div>
+    </div>
+
+    <div class="sec-title">Recent Transactions</div>
+    <div class="card">
+        <div class="card-hdr">
+            <span class="card-hdr-title">Last 3 Transactions</span>
+            <a class="card-hdr-link" onclick="location.href='transactions.html'">View all →</a>
+        </div>
+        <div id="recentList"><div class="empty">Loading…</div></div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay hidden" id="overlay" onclick="closeModal(event)">
+    <div class="modal">
+        <h3 class="modal-title" id="modalTitle">Deposit</h3>
+        <div class="fg"><label>Amount (₺)</label><input type="number" id="modalAmount" placeholder="0.00" min="0" /></div>
+        <div class="modal-btns">
+            <button class="btn-sec"     onclick="closeModal()">Cancel</button>
+            <button class="btn-primary" id="modalBtn" onclick="confirmAction()">Confirm</button>
+        </div>
+        <div class="status-msg" id="modalStatus"></div>
+    </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+    let mainAccountId = null;
+    let currentAction = null;
+
+    async function loadDashboard() {
+        const user     = getUser();
+        const admin    = isAdmin();
+        const accounts = await apiFetch("/api/v1/accounts");
+
+        document.getElementById("sidebar").innerHTML = buildSidebar("dashboard");
+        document.getElementById(admin ? "adminStats" : "userStats").classList.remove("hidden");
+
+        if (admin) {
+            const total = accounts.reduce((s, a) => s + a.balance, 0);
+            document.getElementById("totalBalance").textContent  = "₺ " + fmt(total);
+            document.getElementById("accountCount").textContent  = accounts.length;
+            document.getElementById("heroTitle").textContent     = "Main Account";
+        } else {
+            const total = accounts.reduce((s, a) => s + a.balance, 0);
+            document.getElementById("myBalance").textContent      = "₺ " + fmt(total);
+            document.getElementById("myAccountCount").textContent = accounts.length;
+            document.getElementById("heroTitle").textContent      = "My Account";
+        }
+
+        if (!accounts.length) {
+            document.getElementById("mainName").textContent    = "No accounts yet";
+            document.getElementById("mainBalance").textContent = "₺ 0.00";
+            document.getElementById("recentList").innerHTML    = '<div class="empty">No accounts yet.</div>';
+            if (!admin) document.getElementById("myTxCount").textContent = "0";
+            else        document.getElementById("txCount").textContent   = "0";
+            return;
+        }
+
+        const main = accounts[0];
+        mainAccountId = main.id;
+        document.getElementById("mainName").textContent    = main.accountHolderName;
+        document.getElementById("mainId").textContent      = "#" + main.id;
+        document.getElementById("mainBalance").textContent = "₺ " + fmt(main.balance);
+
+        let allTx = [];
+        for (const acc of accounts) {
+            const txs = await apiFetch(`/api/v1/accounts/${acc.id}/transactions`);
+            txs.forEach(tx => allTx.push({ ...tx, accountName: acc.accountHolderName }));
+        }
+
+        const txCountEl = admin
+            ? document.getElementById("txCount")
+            : document.getElementById("myTxCount");
+        txCountEl.textContent = allTx.length;
+
+        allTx.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        renderTxList(allTx.slice(0, 3), "recentList", accounts.length > 1);
+    }
+
+    function openModal(action) {
+        if (!mainAccountId) { alert("No account found."); return; }
+        currentAction = action;
+        document.getElementById("modalTitle").textContent  = action === "deposit" ? "Quick Deposit" : "Quick Withdraw";
+        document.getElementById("modalBtn").textContent    = action === "deposit" ? "Deposit" : "Withdraw";
+        document.getElementById("modalAmount").value       = "";
+        setStatus("modalStatus", "", "");
+        document.getElementById("overlay").classList.remove("hidden");
+        document.getElementById("modalAmount").focus();
+    }
+
+    function closeModal(e) {
+        if (!e || e.target === document.getElementById("overlay"))
+            document.getElementById("overlay").classList.add("hidden");
+    }
+
+    async function confirmAction() {
+        const amount = Number(document.getElementById("modalAmount").value);
+        if (!amount || amount <= 0) { setStatus("modalStatus", "Enter a valid amount.", "err"); return; }
+        setStatus("modalStatus", "Processing…", "");
+        const ep  = currentAction === "deposit" ? "deposit" : "withdraw";
+        const res = await fetch(`${BASE}/api/v1/accounts/${mainAccountId}/${ep}`, {
+            method: "PUT", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ amount })
+        });
+        if (res.ok) {
+            setStatus("modalStatus", (currentAction === "deposit" ? "Deposit" : "Withdrawal") + " successful ✓", "ok");
+            setTimeout(() => { closeModal(); loadDashboard(); }, 900);
+        } else {
+            setStatus("modalStatus", "Transaction failed.", "err");
+        }
+    }
+
+    (async () => { await checkAuth("userAvatar"); await loadDashboard(); })();
+</script>
+</body>
+</html>

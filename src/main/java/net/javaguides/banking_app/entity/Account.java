@@ -20,5 +20,8 @@ public class Account {
     @Column(name = "account_holder_name")
     private String accountHolderName;
     private double balance;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 
 }

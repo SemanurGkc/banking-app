@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <title>New Account – Banking App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+        .form-card { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); padding: 36px; max-width: 480px; }
+        .form-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .form-card .subtitle { font-size: 14px; color: var(--sub); margin-bottom: 28px; }
+        .success-banner {
+            background: #e8f5e9; border: 1.5px solid #a5d6a7;
+            border-radius: 10px; padding: 16px 20px; margin-top: 20px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .success-banner .icon { font-size: 24px; }
+        .success-banner .msg  { font-size: 14px; font-weight: 600; color: var(--ok); }
+        .success-banner .sub  { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+    <div class="topbar">
+        <h1>New Account</h1>
+        <div class="avatar" id="userAvatar">?</div>
+    </div>
+
+    <div class="form-card">
+        <h2>Create Account</h2>
+        <p class="subtitle">Fill in the details to open a new bank account.</p>
+
+        <div class="fg">
+            <label>Account Holder Name</label>
+            <input type="text" id="ownerName" placeholder="e.g. John Doe" />
+        </div>
+        <div class="fg">
+            <label>Account Type</label>
+            <select id="accountType">
+                <option value="Checking">Checking</option>
+                <option value="Savings">Savings</option>
+                <option value="Business">Business</option>
+            </select>
+        </div>
+        <div class="fg">
+            <label>Initial Balance (₺)</label>
+            <input type="number" id="initialBalance" placeholder="0.00" min="0" />
+        </div>
+
+        <button class="btn-primary" onclick="createAccount()">Create Account</button>
+        <div class="status-msg" id="formStatus"></div>
+
+        <div id="successBanner" class="success-banner hidden">
+            <div class="icon">🎉</div>
+            <div>
+                <div class="msg">Account created successfully!</div>
+                <div class="sub">
+                    <a id="goToAcc" style="color:var(--accent);cursor:pointer">View account →</a>
+                    &nbsp;·&nbsp;
+                    <a onclick="location.href='accounts.html'" style="color:var(--accent);cursor:pointer">All accounts →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+    async function createAccount() {
+        const name    = document.getElementById("ownerName").value.trim();
+        const type    = document.getElementById("accountType").value;
+        const balance = Number(document.getElementById("initialBalance").value);
+
+        if (!name)       { setStatus("formStatus", "Please enter the account holder name.", "err"); return; }
+        if (balance < 0) { setStatus("formStatus", "Balance cannot be negative.", "err"); return; }
+
+        setStatus("formStatus", "Creating account…", "");
+
+        const res = await fetch(`${BASE}/api/v1/accounts`, {
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountHolderName: name, accountType: type, balance })
+        });
+
+        if (res.ok) {
+            const acc = await res.json();
+            setStatus("formStatus", "", "");
+            document.getElementById("ownerName").value      = "";
+            document.getElementById("initialBalance").value = "";
+            document.getElementById("successBanner").classList.remove("hidden");
+            document.getElementById("goToAcc").onclick = () => location.href = `account.html?id=${acc.id}`;
+        } else {
+            setStatus("formStatus", "Failed to create account.", "err");
+        }
+    }
+
+    (async () => {
+        await checkAuth("userAvatar");
+        guardAdmin(); // USER bu sayfaya giremez
+        document.getElementById("sidebar").innerHTML = buildSidebar("new-account");
+    })();
+</script>
+</body>
+</html>

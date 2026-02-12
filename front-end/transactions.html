@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Transactions – Banking App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Transactions</h1>
+        <div class="avatar" id="userAvatar">?</div>
+    </div>
+
+    <div class="filters">
+        <select class="filter-select" id="typeFilter" onchange="applyFilter()">
+            <option value="">All Types</option>
+            <option value="DEPOSIT">Deposit</option>
+            <option value="WITHDRAW">Withdraw</option>
+            <option value="TRANSFER_IN">Transfer In</option>
+            <option value="TRANSFER_OUT">Transfer Out</option>
+        </select>
+        <select class="filter-select" id="accountFilter" onchange="applyFilter()">
+            <option value="">All Accounts</option>
+        </select>
+    </div>
+
+    <div class="card">
+        <div class="card-hdr">
+            <span class="card-hdr-title">Transactions</span>
+            <span class="badge" id="txBadge">0</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th id="accCol">Account</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Balance After</th>
+                </tr>
+                </thead>
+                <tbody id="txTableBody"></tbody>
+            </table>
+            <div id="emptyMsg" class="empty hidden">No transactions found.</div>
+        </div>
+    </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+    let allTx = [];
+
+    async function loadAll() {
+        await checkAuth("userAvatar");
+        document.getElementById("sidebar").innerHTML = buildSidebar("transactions");
+
+        const accounts = await apiFetch("/api/v1/accounts");
+        const accFilter = document.getElementById("accountFilter");
+        const admin = isAdmin();
+
+        // USER'da Account kolonu ve filtresi tek hesap varsa gizle
+        if (!admin && accounts.length <= 1) {
+            document.getElementById("accCol").style.display = "none";
+            accFilter.closest(".filters").style.display = "none";
+        }
+
+        // Her hesap için transaction'ları getir
+        for (const acc of accounts) {
+            if (admin) {
+                accFilter.insertAdjacentHTML("beforeend",
+                    `<option value="${acc.id}">${acc.accountHolderName}</option>`);
+            }
+
+            try {
+                // Backend endpoint: /api/v1/transactions/account/{accountId}
+                const txs = await apiFetch(`/api/v1/transactions/account/${acc.id}`);
+
+                txs.forEach(tx => {
+                    allTx.push({
+                        ...tx,
+                        accountId: acc.id,
+                        accountName: acc.accountHolderName,
+                        type: tx.transactionType // Backend'den gelen field adı
+                    });
+                });
+            } catch (error) {
+                console.error(`Error loading transactions for account ${acc.id}:`, error);
+            }
+        }
+
+        allTx.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        renderTable(allTx);
+    }
+
+    function applyFilter() {
+        const typeVal = document.getElementById("typeFilter").value;
+        const accVal = document.getElementById("accountFilter").value;
+        let filtered = allTx;
+
+        if (typeVal) {
+            filtered = filtered.filter(tx => tx.type === typeVal);
+        }
+        if (accVal) {
+            filtered = filtered.filter(tx => String(tx.accountId) === accVal);
+        }
+
+        renderTable(filtered);
+    }
+
+    function renderTable(txs) {
+        const tbody = document.getElementById("txTableBody");
+        const empty = document.getElementById("emptyMsg");
+        document.getElementById("txBadge").textContent = txs.length;
+
+        if (!txs.length) {
+            tbody.innerHTML = "";
+            empty.classList.remove("hidden");
+            return;
+        }
+
+        empty.classList.add("hidden");
+        const admin = isAdmin();
+
+        tbody.innerHTML = txs.map(tx => {
+            // Transaction type'a göre stil
+            let cls = '';
+            let sign = '';
+            let displayType = '';
+
+            switch(tx.type) {
+                case 'DEPOSIT':
+                    cls = 'deposit';
+                    sign = '+';
+                    displayType = 'Deposit';
+                    break;
+                case 'WITHDRAW':
+                    cls = 'withdraw';
+                    sign = '−';
+                    displayType = 'Withdraw';
+                    break;
+                case 'TRANSFER_IN':
+                    cls = 'deposit';
+                    sign = '+';
+                    displayType = 'Transfer In';
+                    break;
+                case 'TRANSFER_OUT':
+                    cls = 'withdraw';
+                    sign = '−';
+                    displayType = 'Transfer Out';
+                    break;
+                default:
+                    cls = '';
+                    sign = '';
+                    displayType = tx.type;
+            }
+
+            const dateStr = tx.createdAt ? new Date(tx.createdAt).toLocaleString("tr-TR") : "–";
+
+            const accCell = admin
+                ? `<td><a onclick="location.href='account.html?id=${tx.accountId}'" style="color:var(--accent);cursor:pointer;font-weight:500">${tx.accountName}</a></td>`
+                : `<td style="color:var(--sub)">${tx.accountName}</td>`;
+
+            return `<tr>
+                <td style="color:var(--sub)">${dateStr}</td>
+                ${accCell}
+                <td><span class="tag ${cls}">${displayType}</span></td>
+                <td class="amt-${cls}">${sign}₺${fmt(tx.amount)}</td>
+                <td>₺${fmt(tx.balanceAfter)}</td>
+            </tr>`;
+        }).join("");
+    }
+
+    loadAll();
+</script>
+</body>
+</html>

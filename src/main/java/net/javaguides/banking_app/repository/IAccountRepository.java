@@ -3,6 +3,9 @@ package net.javaguides.banking_app.repository;
 import net.javaguides.banking_app.entity.Account;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface IAccountRepository extends JpaRepository<Account,Long> {
+import java.util.List;
 
+public interface IAccountRepository extends JpaRepository<Account, Long> {
+
+    List<Account> findByUserUsername(String username);
 }

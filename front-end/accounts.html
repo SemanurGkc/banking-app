@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Accounts – Banking App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Accounts</h1>
+    <div class="avatar" id="userAvatar">?</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr">
+      <span class="card-hdr-title">All Accounts</span>
+      <a class="card-hdr-link" onclick="location.href='new-account.html'">+ New Account</a>
+    </div>
+    <div id="accountGrid" class="account-grid"></div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  async function loadAccounts() {
+    // Sadece admin görebilir
+    guardAdmin();
+    document.getElementById("sidebar").innerHTML = buildSidebar("accounts");
+
+    const accounts = await apiFetch("/api/v1/accounts");
+    const grid     = document.getElementById("accountGrid");
+
+    if (!accounts.length) {
+      grid.innerHTML = '<div class="empty">No accounts yet. <a onclick="location.href=\'new-account.html\'" style="color:var(--accent);cursor:pointer">Create one →</a></div>';
+      return;
+    }
+
+    grid.innerHTML = accounts.map(acc => `
+      <div class="acc-card">
+        <div class="acc-card-top">
+          <div class="acc-initials">${acc.accountHolderName.charAt(0).toUpperCase()}</div>
+          <div>
+            <div class="acc-card-name">${acc.accountHolderName}</div>
+            <div class="acc-card-id">#${acc.id}</div>
+          </div>
+        </div>
+        <div class="acc-card-balance">₺ ${fmt(acc.balance)}</div>
+        <button class="btn-view" onclick="location.href='account.html?id=${acc.id}'">View Details →</button>
+      </div>
+    `).join("");
+  }
+
+  (async () => { await checkAuth("userAvatar"); await loadAccounts(); })();
+</script>
+</body>
+</html>

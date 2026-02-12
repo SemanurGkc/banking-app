@@ -14,4 +14,8 @@ public interface IAccountService {
     List<AccountDto> getAllAccounts();
 
     void deleteAccount(Long id);
+
+    List<AccountDto> getAccountsByUsername(String username);
+
+    AccountDto transfer(Long fromAccountId, Long toAccountId, double amount);
 }
