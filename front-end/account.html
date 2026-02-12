@@ -66,7 +66,6 @@
     async function init() {
         await checkAuth("userAvatar");
 
-        // USER ise URL'de id yoksa kendi ilk hesabına yönlendir
         if (isUser() && !accountId) {
             const accounts = await apiFetch("/api/v1/accounts");
             if (accounts.length) location.href = `account.html?id=${accounts[0].id}`;
@@ -78,7 +77,6 @@
 
         document.getElementById("sidebar").innerHTML = buildSidebar("accounts");
 
-        // Back butonu: admin → accounts listesi, user → dashboard
         document.getElementById("backBtn").onclick = () =>
             location.href = isAdmin() ? "accounts.html" : "dashboard.html";
 

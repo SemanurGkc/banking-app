@@ -31,6 +31,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/user/**").hasAnyRole("USER","ADMIN")
                         .requestMatchers("/api/v1/accounts/**").authenticated()
                         .requestMatchers("/api/v1/transactions/**").authenticated()
+                        .requestMatchers("/api/auth/change-password").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -43,7 +44,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(List.of("*")); // Tüm origin'lere izin ver
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

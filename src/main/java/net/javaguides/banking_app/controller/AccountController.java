@@ -4,6 +4,7 @@ import net.javaguides.banking_app.dto.AccountDto;
 import net.javaguides.banking_app.service.IAccountService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +23,23 @@ public class AccountController {
     }
 
     //Add account REST API
+    @PreAuthorize( "hasRole('ROLE_ADMIN')")
     @PostMapping
-    public ResponseEntity<AccountDto> addAccount(@RequestBody AccountDto accountDto){
-        return new ResponseEntity<>(accountService.createAccount(accountDto), HttpStatus.CREATED);
+    public ResponseEntity<?> addAccount(@RequestBody AccountDto accountDto){
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            AccountDto createdAccount = accountService.createAccount(accountDto);
+            return new ResponseEntity<>(createdAccount, HttpStatus.CREATED);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to create account: " + e.getMessage()));
+        }
     }
 
     //Get account REST API

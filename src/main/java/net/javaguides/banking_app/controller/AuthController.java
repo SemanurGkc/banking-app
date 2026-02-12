@@ -2,9 +2,12 @@ package net.javaguides.banking_app.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import net.javaguides.banking_app.dto.ChangePasswordRequest;
 import net.javaguides.banking_app.dto.Register.RegisterRequest;
+import net.javaguides.banking_app.entity.Account;
 import net.javaguides.banking_app.entity.Role;
 import net.javaguides.banking_app.entity.User;
+import net.javaguides.banking_app.repository.IAccountRepository;
 import net.javaguides.banking_app.repository.IUserRepository;
 import net.javaguides.banking_app.service.IAccountService;
 import net.javaguides.banking_app.service.UserService;
@@ -20,10 +23,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 @RestController
@@ -33,18 +33,20 @@ public class AuthController {
 
     private final IUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final IAccountRepository accountRepository;
 
     public AuthController(IUserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          IAccountRepository accountRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.accountRepository = accountRepository;
     }
 
     //register
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            // username check
             if (userRepository.findByUsername(request.getUsername()).isPresent()) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "Username already exists"));
@@ -53,22 +55,30 @@ public class AuthController {
             User user = new User();
             user.setUsername(request.getUsername());
             user.setPassword(passwordEncoder.encode(request.getPassword()));
-
             user.setRole(Role.ROLE_USER);
+
             userRepository.save(user);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "User registered successfully!");
-            response.put("username", user.getUsername());
-            response.put("id", user.getId());
+            Account account = new Account();
+            account.setAccountHolderName(user.getUsername());
+            account.setBalance(0.0);
+            account.setUser(user);
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            accountRepository.save(account);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    Map.of(
+                            "message", "User registered successfully!",
+                            "username", user.getUsername(),
+                            "balance", account.getBalance()
+                    )
+            );
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Registration failed: " + e.getMessage()));
         }
     }
-
 
     //Login
     @PostMapping("/login")
@@ -88,7 +98,6 @@ public class AuthController {
                         .body(Map.of("error", "Invalid username or password"));
             }
 
-            // 🔥 SESSION OLUŞTUR
             List<SimpleGrantedAuthority> authorities = List.of(
                     new SimpleGrantedAuthority(user.getRole().name())
             );
@@ -159,38 +168,6 @@ public class AuthController {
                     .body(Map.of("error", "Failed to get users: " + e.getMessage()));
         }
     }
-
-    //change password
-    @PutMapping("/change-password")
-    public ResponseEntity<?> changePassword(
-            @RequestParam String username,
-            @RequestParam String oldPassword,
-            @RequestParam String newPassword) {
-        try {
-            Optional<User> userOptional = userRepository.findByUsername(username);
-
-            if (userOptional.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "User not found"));
-            }
-
-            User user = userOptional.get();
-
-            if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Old password is incorrect"));
-            }
-
-            user.setPassword(passwordEncoder.encode(newPassword));
-            userRepository.save(user);
-
-            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Password change failed: " + e.getMessage()));
-        }
-    }
-
 
     //Delete account
     @DeleteMapping("/delete-account")
@@ -284,5 +261,30 @@ public class AuthController {
         response.put("role", user.getRole().name());
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Old password is incorrect"));
+            }
+
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to change password: " + e.getMessage()));
+        }
     }
 }

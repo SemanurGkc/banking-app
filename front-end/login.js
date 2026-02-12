@@ -32,7 +32,6 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
         const data = await res.json();
 
-        // 🔥 Session için userId'yi localStorage'a kaydet
         localStorage.setItem("userId", data.userId);
         localStorage.setItem("username", data.username);
 

@@ -75,6 +75,7 @@ function buildSidebar(activePage) {
         { page: "accounts",      href: "accounts.html",      icon: "👤", label: "Accounts",     show: admin },
         { page: "transactions",  href: "transactions.html",  icon: "📄", label: "Transactions", show: true  },
         { page: "new-account",   href: "new-account.html",   icon: "➕", label: "New Account",  show: admin },
+        { page: "change-password",  href: "change-password.html",  icon: "🔒", label: "Change Password", show: true  },
     ];
 
     const items = links

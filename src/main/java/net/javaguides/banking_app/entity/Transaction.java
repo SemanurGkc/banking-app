@@ -24,13 +24,13 @@ public class Transaction {
     private Long accountId;
 
     @Column(name = "transaction_type", nullable = false)
-    private String transactionType; // DEPOSIT, WITHDRAW, TRANSFER_IN, TRANSFER_OUT
+    private String transactionType;
 
     @Column(nullable = false)
     private double amount;
 
     @Column(name = "target_account_id")
-    private Long targetAccountId; // Transfer için (opsiyonel)
+    private Long targetAccountId;
 
     @Column(length = 500)
     private String description;
@@ -39,5 +39,5 @@ public class Transaction {
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
-    private double balanceAfter; // İşlem sonrası bakiye
+    private double balanceAfter;
 }

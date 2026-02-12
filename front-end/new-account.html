@@ -99,7 +99,7 @@
 
     (async () => {
         await checkAuth("userAvatar");
-        guardAdmin(); // USER bu sayfaya giremez
+        guardAdmin();
         document.getElementById("sidebar").innerHTML = buildSidebar("new-account");
     })();
 </script>
