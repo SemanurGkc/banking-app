@@ -41,7 +41,7 @@ Supports two user roles — **Admin** and **User** — each with a distinct expe
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/banking-app.git
+git clone https://github.com/SemanurGkc/banking-app.git
 cd banking-app
 ```
 
